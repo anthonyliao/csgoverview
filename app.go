@@ -558,7 +558,14 @@ func (app *app) copyPositionToClipboard(player int) {
 	}
 }
 
-func (app *app) updateWindowTitle() {
+func (app *app) roundNumber() byte {
+	m := app.match
+	cts := m.States[app.curFrame].TeamCounterTerrorists
+	ts := m.States[app.curFrame].TeamTerrorists
+	return cts.Score + ts.Score + 1
+}
+
+func (app *app) roundScore() string {
 	m := app.match
 	cts := m.States[app.curFrame].TeamCounterTerrorists
 	ts := m.States[app.curFrame].TeamTerrorists
@@ -570,7 +577,14 @@ func (app *app) updateWindowTitle() {
 	if clanNameTs == "" {
 		clanNameTs = "Terrorists"
 	}
-	windowTitle := fmt.Sprintf("%s  [%d:%d]  %s - Round %d", clanNameCTs, cts.Score, ts.Score, clanNameTs, cts.Score+ts.Score+1)
+	roundScore := fmt.Sprintf("%s  [%d:%d]  %s", clanNameCTs, cts.Score, ts.Score, clanNameTs)
+	return roundScore
+}
+
+func (app *app) updateWindowTitle() {
+	roundScore := app.roundScore()
+	roundNumber := app.roundNumber()
+	windowTitle := fmt.Sprintf("%s - Round %d", roundScore, roundNumber)
 	// expensive?
 	app.window.SetTitle(windowTitle)
 }

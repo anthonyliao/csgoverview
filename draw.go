@@ -116,21 +116,10 @@ func (app *app) drawPlayer(player *common.Player, index int) {
 		app.drawString(cropStringToN(name, 12), color, scaledXInt+10, scaledYInt+10)
 
 		if player.Health == 100 {
-			gfx.AACircleColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer, color)
+			gfx.FilledCircleColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer, color)
 		} else {
-			// start == 0 is facing right
-			// health left
-			var healthArc int32 = int32(player.Health) * 360 / 100
-			start := 90 - (healthArc / 2)
-			end := 90 + (healthArc / 2)
-			gfx.ArcColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer, start, end, color)
-			// health lost
-			color.R = uint8(float32(color.R) * 0.6)
-			color.G = uint8(float32(color.G) * 0.6)
-			color.B = uint8(float32(color.B) * 0.6)
-			start = -90 - ((360 - healthArc) / 2)
-			end = -90 + ((360 - healthArc) / 2)
-			gfx.ArcColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer, start, end, color)
+			gfx.FilledPieColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer, 270, 270+int32(player.Health)*360/100, color)
+			gfx.AACircleColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer, color)
 		}
 
 		viewAngle := -int32(player.ViewDirectionX) // negated because of sdl
@@ -143,22 +132,23 @@ func (app *app) drawPlayer(player *common.Player, index int) {
 
 		colorFlash := colorFlashEffect
 		if player.FlashDuration.Seconds() > 0.5 {
-			remaining := player.FlashTimeRemaining
-			if remaining.Seconds() >= 3.1 {
-				colorFlash.A = 255
-			} else {
-				colorFlash.A = uint8((remaining.Seconds() * 255) / 3.1)
-			}
 			if common.MapHasAlternateVersion(m.MapName) && (!player.IsOnNormalElevation && app.isOnNormalElevation) ||
 				(player.IsOnNormalElevation && !app.isOnNormalElevation) {
 				colorFlash.A /= 2
 			}
-			gfx.FilledCircleColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer-5, colorFlash)
+
+			fullFlashTime := 3.1
+			remaining := player.FlashTimeRemaining
+			if remaining.Seconds() >= fullFlashTime {
+				gfx.FilledCircleColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer*2, colorFlash)
+			} else {
+				gfx.FilledPieColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer*2, 270+int32((fullFlashTime-remaining.Seconds())*360/fullFlashTime), 630, colorFlash)
+			}
 		}
 
 		if player.HasBomb {
-			gfx.AACircleColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer-1, colorC4)
 			gfx.AACircleColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer-2, colorC4)
+			gfx.AACircleColor(app.renderer, scaledXInt, scaledYInt, radiusPlayer-3, colorC4)
 		}
 
 		if player.IsDefusing {
@@ -248,8 +238,10 @@ func (app *app) drawEffects(effect *common.Effect) {
 				smokeOutlineColor = colorEqSmokeOutlineCounter
 			}
 			gfx.AACircleColor(app.renderer, scaledXInt, scaledYInt, scaledRadiusSmoke, smokeOutlineColor)
+			gfx.AACircleColor(app.renderer, scaledXInt, scaledYInt, scaledRadiusSmoke-1, smokeOutlineColor)
 		}
 		gfx.ArcColor(app.renderer, scaledXInt, scaledYInt, 10, 270+effect.Lifetime*360/m.SmokeEffectLifetime, 630, colorCircles)
+		gfx.ArcColor(app.renderer, scaledXInt, scaledYInt, 9, 270+effect.Lifetime*360/m.SmokeEffectLifetime, 630, colorCircles)
 	case demoinfo.EqDefuseKit:
 		gfx.AACircleColor(app.renderer, scaledXInt, scaledYInt, effect.Lifetime, colorMoney)
 	case demoinfo.EqBomb:
@@ -343,8 +335,12 @@ func (app *app) drawInfobars() {
 	app.drawInfobar(cts, 0, mapYOffset, colorCounter)
 	app.drawInfobar(ts, mapXOffset+mapOverviewWidth, mapYOffset, colorTerror)
 	app.drawKillfeed(m.Killfeed[app.curFrame], mapXOffset+mapOverviewWidth, mapYOffset+600)
-	app.drawTimer(m.States[app.curFrame].Timer, 0, mapYOffset+600)
-	app.drawPlaybackSpeedModifier(5, mapYOffset+630)
+	roundScore := app.roundScore()
+	app.drawString(roundScore, colorDarkWhite, 5, mapYOffset+600)
+	roundNumber := fmt.Sprintf("Round %d", app.roundNumber())
+	app.drawString(roundNumber, colorDarkWhite, 5, mapYOffset+630)
+	app.drawTimer(m.States[app.curFrame].Timer, 0, mapYOffset+660)
+	app.drawPlaybackSpeedModifier(5, mapYOffset+690)
 }
 
 func (app *app) drawInfobar(players []common.Player, x, y int32, color sdl.Color) {
